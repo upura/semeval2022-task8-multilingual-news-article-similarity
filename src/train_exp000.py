@@ -130,8 +130,13 @@ class TextDataset(Dataset):
         self.df = df
         self.text_dataframe = (
             pd.read_csv("../input/semeval2022/text_dataframe.csv", low_memory=False)
-            .dropna(subset=["title"])
+            .dropna(subset=["title", "text"])
             .reset_index(drop=True)
+        )
+        self.text_dataframe["title"] = (
+            self.text_dataframe["title"].fillna("")
+            + "[SEP]"
+            + self.text_dataframe["text"].fillna("")
         )
         self.is_train = is_train
         self.text_dataframe["text_id"] = self.text_dataframe["text_id"].astype(str)
@@ -333,7 +338,7 @@ class Cfg:
     RUN_NAME = "exp000"
     NUM_FOLDS = 5
     NUM_CLASSES = 1
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 5
     NUM_WORKERS = 2
     NUM_GPUS = 1
     MAX_LEN = 248
