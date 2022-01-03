@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
+import wandb
+from kaggle_secrets import UserSecretsClient
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
-
-# from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.loggers.csv_logs import CSVLogger
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold
@@ -363,8 +364,12 @@ if __name__ == "__main__":
     seed_everything(777)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
+    user_secrets = UserSecretsClient()
+    secret_value = user_secrets.get_secret("WANDB_API_KEY")
+    wandb.login(key=secret_value)
+
     logger = CSVLogger(save_dir=str(cfg.OUTPUT_PATH), name=f"fold_{fold}")
-    # wandb_logger = WandbLogger(name=f"{cfg.RUN_NAME}_{fold}", project=cfg.PROJECT_NAME)
+    wandb_logger = WandbLogger(name=f"{cfg.RUN_NAME}_{fold}", project=cfg.PROJECT_NAME)
 
     checkpoint_callback = ModelCheckpoint(
         dirpath=str(cfg.OUTPUT_PATH),
@@ -376,8 +381,7 @@ if __name__ == "__main__":
         max_epochs=cfg.NUM_EPOCHS,
         gpus=cfg.NUM_GPUS,
         callbacks=[checkpoint_callback],
-        # logger=[logger, wandb_logger],
-        logger=[logger],
+        logger=[logger, wandb_logger],
     )
 
     model = MyLightningModule(cfg)
