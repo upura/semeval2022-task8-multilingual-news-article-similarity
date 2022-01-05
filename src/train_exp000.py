@@ -108,7 +108,7 @@ class MyLightningModule(pl.LightningModule):
         self.log_dict(d, prog_bar=True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=2e-5)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-6)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=self.trainer.max_epochs
         )
@@ -327,7 +327,13 @@ class MyModel(nn.Module):
                 [outputs2["hidden_states"][-1 * i][:, 0] for i in range(1, 4 + 1)],
                 dim=1,
             )
-        sequence_output = torch.cat([sequence_output1, sequence_output2], dim=1)
+        sequence_output = torch.cat(
+            [
+                torch.abs(sequence_output1 - sequence_output2),
+                sequence_output1 * sequence_output2,
+            ],
+            dim=1,
+        )
         outputs = self.fc(sequence_output)
         return outputs
 
