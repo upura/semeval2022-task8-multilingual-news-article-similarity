@@ -17,16 +17,36 @@ def fetch_dateframe(text_id: str, meta):
 
 
 if __name__ == "__main__":
-    train = pd.read_csv("../input/semeval2022/semeval-2022_task8_train-data_batch.csv")
-    text_ids = set(sum(train["pair_id"].str.split("_"), []))
-    meta = pathlib.Path("../input/semeval2022")
+    phase = ["test"]
 
-    text_dfs = []
-    for text_id in tqdm(text_ids):
-        try:
-            res = fetch_dateframe(text_id, meta)
-            text_dfs.append(res)
-        except IndexError:
-            pass
-    text_df = pd.concat(text_dfs).reset_index(drop=True)
-    text_df.to_csv("../input/semeval2022/text_dataframe.csv", index=False)
+    if "train" in phase:
+        train = pd.read_csv(
+            "../input/semeval2022/semeval-2022_task8_train-data_batch.csv"
+        )
+        text_ids = set(sum(train["pair_id"].str.split("_"), []))
+        meta = pathlib.Path("../input/semeval2022")
+
+        text_dfs = []
+        for text_id in tqdm(text_ids):
+            try:
+                res = fetch_dateframe(text_id, meta)
+                text_dfs.append(res)
+            except IndexError:
+                pass
+        text_df = pd.concat(text_dfs).reset_index(drop=True)
+        text_df.to_csv("../input/semeval2022/text_dataframe.csv", index=False)
+
+    if "test" in phase:
+        train = pd.read_csv("input/eval/PUBLIC-semeval-2022_task8_eval_data_202201.csv")
+        text_ids = set(sum(train["pair_id"].str.split("_"), []))
+        meta = pathlib.Path("../input/eval")
+
+        text_dfs = []
+        for text_id in tqdm(text_ids):
+            try:
+                res = fetch_dateframe(text_id, meta)
+                text_dfs.append(res)
+            except IndexError:
+                pass
+        text_df = pd.concat(text_dfs).reset_index(drop=True)
+        text_df.to_csv("../input/eval/text_dataframe_eval.csv", index=False)
