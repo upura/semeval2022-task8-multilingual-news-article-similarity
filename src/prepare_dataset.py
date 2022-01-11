@@ -37,7 +37,9 @@ if __name__ == "__main__":
         text_df.to_csv("../input/semeval2022/text_dataframe.csv", index=False)
 
     if "test" in phase:
-        train = pd.read_csv("input/eval/PUBLIC-semeval-2022_task8_eval_data_202201.csv")
+        train = pd.read_csv(
+            "../input/eval/PUBLIC-semeval-2022_task8_eval_data_202201.csv"
+        )
         text_ids = set(sum(train["pair_id"].str.split("_"), []))
         meta = pathlib.Path("../input/eval")
 
