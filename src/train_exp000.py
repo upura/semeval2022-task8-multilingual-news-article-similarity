@@ -52,6 +52,7 @@ class MyLightningModule(pl.LightningModule):
         attention_mask2 = x["attention_mask2"]
         token_type_ids1 = x["token_type_ids1"]
         token_type_ids2 = x["token_type_ids2"]
+        features = x["features"]
         output = self.backbone(
             input_ids1=ids1,
             attention_mask1=attention_mask1,
@@ -59,6 +60,7 @@ class MyLightningModule(pl.LightningModule):
             input_ids2=ids2,
             attention_mask2=attention_mask2,
             token_type_ids2=token_type_ids2,
+            features=features,
         )
         return output
 
@@ -69,6 +71,7 @@ class MyLightningModule(pl.LightningModule):
         attention_mask2 = batch["attention_mask2"]
         token_type_ids1 = batch["token_type_ids1"]
         token_type_ids2 = batch["token_type_ids2"]
+        features = batch["features"]
         targets = batch["targets"]
         output = self.backbone(
             input_ids1=ids1,
@@ -77,6 +80,7 @@ class MyLightningModule(pl.LightningModule):
             input_ids2=ids2,
             attention_mask2=attention_mask2,
             token_type_ids2=token_type_ids2,
+            features=features,
         )
         loss = self.criterion(output, targets)
         return loss
@@ -88,6 +92,7 @@ class MyLightningModule(pl.LightningModule):
         attention_mask2 = batch["attention_mask2"]
         token_type_ids1 = batch["token_type_ids1"]
         token_type_ids2 = batch["token_type_ids2"]
+        features = batch["features"]
         targets = batch["targets"]
         output = self.backbone(
             input_ids1=ids1,
@@ -96,6 +101,7 @@ class MyLightningModule(pl.LightningModule):
             input_ids2=ids2,
             attention_mask2=attention_mask2,
             token_type_ids2=token_type_ids2,
+            features=features,
         )
         loss = self.criterion(output, targets)
         output = OrderedDict(
@@ -175,6 +181,11 @@ class TextDataset(Dataset):
             return_attention_mask=True,
             return_token_type_ids=True,
         )
+        self.features = (
+            pd.read_csv("../input/semeval2022/X_train.csv")
+            if is_train
+            else pd.read_csv("../input/semeval2022/X_test.csv")
+        )
 
     def __len__(self):
         return len(self.df)
@@ -190,7 +201,7 @@ class TextDataset(Dataset):
         input_ids2 = torch.tensor(self.encoded["input_ids"][text_index2])
         attention_mask2 = torch.tensor(self.encoded["attention_mask"][text_index2])
         token_type_ids2 = torch.tensor(self.encoded["token_type_ids"][text_index2])
-
+        features = torch.tensor(self.features.loc[index].values, dtype=torch.float32)
         if self.is_train:
             target = self.target[index]
             return {
@@ -200,6 +211,7 @@ class TextDataset(Dataset):
                 "ids2": input_ids2,
                 "attention_mask2": attention_mask2,
                 "token_type_ids2": token_type_ids2,
+                "features": features,
                 "targets": target,
             }
         else:
@@ -210,6 +222,7 @@ class TextDataset(Dataset):
                 "ids2": input_ids2,
                 "attention_mask2": attention_mask2,
                 "token_type_ids2": token_type_ids2,
+                "features": features,
             }
 
 
@@ -316,7 +329,7 @@ class MyModel(nn.Module):
         elif self.custom_header == "lstm":
             self.lstm = nn.LSTM(self.out_shape, self.out_shape, batch_first=True)
         elif self.custom_header == "concat":
-            self.fc = nn.Linear(self.out_shape * 4, num_classes)
+            self.fc = nn.Linear(self.out_shape * 4 + 12, num_classes)
 
     def forward(
         self,
@@ -326,6 +339,7 @@ class MyModel(nn.Module):
         input_ids2,
         attention_mask2,
         token_type_ids2,
+        features,
     ):
         outputs1 = self.net1(
             input_ids=input_ids1,
@@ -374,14 +388,14 @@ class MyModel(nn.Module):
             ],
             dim=1,
         )
-        outputs = self.fc(sequence_output)
+        outputs = self.fc(torch.cat([sequence_output, features], dim=1))
         return outputs
 
 
 @dataclasses.dataclass
 class Cfg:
     PROJECT_NAME = "semeval2022"
-    RUN_NAME = "exp000"
+    RUN_NAME = "exp002"
     NUM_FOLDS = 5
     NUM_CLASSES = 1
     NUM_EPOCHS = 3
