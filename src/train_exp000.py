@@ -50,11 +50,15 @@ class MyLightningModule(pl.LightningModule):
         ids2 = x["ids2"]
         attention_mask1 = x["attention_mask1"]
         attention_mask2 = x["attention_mask2"]
+        token_type_ids1 = x["token_type_ids1"]
+        token_type_ids2 = x["token_type_ids2"]
         output = self.backbone(
             input_ids1=ids1,
             attention_mask1=attention_mask1,
+            token_type_ids1=token_type_ids1,
             input_ids2=ids2,
             attention_mask2=attention_mask2,
+            token_type_ids2=token_type_ids2,
         )
         return output
 
@@ -63,12 +67,16 @@ class MyLightningModule(pl.LightningModule):
         ids2 = batch["ids2"]
         attention_mask1 = batch["attention_mask1"]
         attention_mask2 = batch["attention_mask2"]
+        token_type_ids1 = batch["token_type_ids1"]
+        token_type_ids2 = batch["token_type_ids2"]
         targets = batch["targets"]
         output = self.backbone(
             input_ids1=ids1,
             attention_mask1=attention_mask1,
+            token_type_ids1=token_type_ids1,
             input_ids2=ids2,
             attention_mask2=attention_mask2,
+            token_type_ids2=token_type_ids2,
         )
         loss = self.criterion(output, targets)
         return loss
@@ -78,12 +86,16 @@ class MyLightningModule(pl.LightningModule):
         ids2 = batch["ids2"]
         attention_mask1 = batch["attention_mask1"]
         attention_mask2 = batch["attention_mask2"]
+        token_type_ids1 = batch["token_type_ids1"]
+        token_type_ids2 = batch["token_type_ids2"]
         targets = batch["targets"]
         output = self.backbone(
             input_ids1=ids1,
             attention_mask1=attention_mask1,
+            token_type_ids1=token_type_ids1,
             input_ids2=ids2,
             attention_mask2=attention_mask2,
+            token_type_ids2=token_type_ids2,
         )
         loss = self.criterion(output, targets)
         output = OrderedDict(
@@ -128,8 +140,13 @@ class TextDataset(Dataset):
         super().__init__()
 
         self.df = df
+        text_df_path = (
+            "../input/semeval2022/text_dataframe.csv"
+            if is_train
+            else "../input/semeval2022/text_dataframe_eval.csv"
+        )
         self.text_dataframe = (
-            pd.read_csv("../input/semeval2022/text_dataframe.csv", low_memory=False)
+            pd.read_csv(text_df_path, low_memory=False)
             .dropna(subset=["title", "text"])
             .reset_index(drop=True)
         )
@@ -156,6 +173,7 @@ class TextDataset(Dataset):
             max_length=max_len,
             truncation=True,
             return_attention_mask=True,
+            return_token_type_ids=True,
         )
 
     def __len__(self):
@@ -168,24 +186,30 @@ class TextDataset(Dataset):
         text_index2 = self.text_dataframe.query(f"text_id=='{text_id2}'").index[0]
         input_ids1 = torch.tensor(self.encoded["input_ids"][text_index1])
         attention_mask1 = torch.tensor(self.encoded["attention_mask"][text_index1])
+        token_type_ids1 = torch.tensor(self.encoded["token_type_ids"][text_index1])
         input_ids2 = torch.tensor(self.encoded["input_ids"][text_index2])
         attention_mask2 = torch.tensor(self.encoded["attention_mask"][text_index2])
+        token_type_ids2 = torch.tensor(self.encoded["token_type_ids"][text_index2])
 
         if self.is_train:
             target = self.target[index]
             return {
                 "ids1": input_ids1,
                 "attention_mask1": attention_mask1,
+                "token_type_ids1": token_type_ids1,
                 "ids2": input_ids2,
                 "attention_mask2": attention_mask2,
+                "token_type_ids2": token_type_ids2,
                 "targets": target,
             }
         else:
             return {
                 "ids1": input_ids1,
                 "attention_mask1": attention_mask1,
+                "token_type_ids1": token_type_ids1,
                 "ids2": input_ids2,
                 "attention_mask2": attention_mask2,
+                "token_type_ids2": token_type_ids2,
             }
 
 
@@ -294,9 +318,25 @@ class MyModel(nn.Module):
         elif self.custom_header == "concat":
             self.fc = nn.Linear(self.out_shape * 4, num_classes)
 
-    def forward(self, input_ids1, attention_mask1, input_ids2, attention_mask2):
-        outputs1 = self.net1(input_ids=input_ids1, attention_mask=attention_mask1)
-        outputs2 = self.net1(input_ids=input_ids2, attention_mask=attention_mask2)
+    def forward(
+        self,
+        input_ids1,
+        attention_mask1,
+        token_type_ids1,
+        input_ids2,
+        attention_mask2,
+        token_type_ids2,
+    ):
+        outputs1 = self.net1(
+            input_ids=input_ids1,
+            attention_mask=attention_mask1,
+            token_type_ids=token_type_ids1,
+        )
+        outputs2 = self.net1(
+            input_ids=input_ids2,
+            attention_mask=attention_mask2,
+            token_type_ids=token_type_ids2,
+        )
         if self.custom_header == "max_pool":
             sequence_output1, _ = outputs1["last_hidden_state"].max(1)
             outputs1 = self.fc(sequence_output1)
@@ -344,13 +384,13 @@ class Cfg:
     RUN_NAME = "exp000"
     NUM_FOLDS = 5
     NUM_CLASSES = 1
-    NUM_EPOCHS = 5
+    NUM_EPOCHS = 1
     NUM_WORKERS = 2
     NUM_GPUS = 1
-    MAX_LEN = 248
-    BATCH_SIZE = 16
-    MODEL_PATH = "roberta-base"
-    TOKENIZER_PATH = "roberta-base"
+    MAX_LEN = 100
+    BATCH_SIZE = 32
+    MODEL_PATH = "xlm-roberta-base"
+    TOKENIZER_PATH = "xlm-roberta-base"
     TRANSFORMER_PARAMS = {
         "output_hidden_states": True,
         "hidden_dropout_prob": 0.0,
@@ -359,7 +399,7 @@ class Cfg:
     CUSTOM_HEADER = "concat"
     OUTPUT_PATH = "."
     TRAIN_DF_PATH = "../input/semeval2022/semeval-2022_task8_train-data_batch.csv"
-    TEST_DF_PATH = "../input/semeval2022/semeval-2022_task8_train-data_batch.csv"
+    TEST_DF_PATH = "../input/semeval2022/PUBLIC-semeval-2022_task8_eval_data_202201.csv"
     TEXT_COL = "title"
     TARGET_COL = "Overall"
 
