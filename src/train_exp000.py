@@ -456,11 +456,11 @@ if __name__ == "__main__":
     ]
 
     pred = np.load(f"y_test_pred_fold{fold}")
-    test = pd.read_csv(
-        "../input/semeval2022/PUBLIC-semeval-2022_task8_eval_data_202201.csv"
+    test = pd.read_csv(cfg.TEST_DF_PATH)
+    test[cfg.TARGET_COL] = np.nan
+    test.loc[test["pair_id"].isin(rule_based_pair_ids), cfg.TARGET_COL] = 2.8
+    test.loc[~test["pair_id"].isin(rule_based_pair_ids), cfg.TARGET_COL] = pred.reshape(
+        -1
     )
-    test["Overall"] = np.nan
-    test.loc[test["pair_id"].isin(rule_based_pair_ids), "Overall"] = 2.8
-    test.loc[~test["pair_id"].isin(rule_based_pair_ids), "Overall"] = pred.reshape(-1)
-    test[["pair_id", "Overall"]].to_csv("submission.csv", index=False)
-    test[["pair_id", "Overall"]].head(2)
+    test[["pair_id", cfg.TARGET_COL]].to_csv("submission.csv", index=False)
+    test[["pair_id", cfg.TARGET_COL]].head(2)
