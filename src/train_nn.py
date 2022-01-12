@@ -126,7 +126,7 @@ class MyLightningModule(pl.LightningModule):
         self.log_dict(d, prog_bar=True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-6)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=self.trainer.max_epochs
         )
@@ -187,7 +187,7 @@ class TextDataset(Dataset):
         )
 
         if self.is_train:
-            self.target = torch.tensor(df[target_col].values, dtype=torch.float32)
+            self.target = torch.tensor(self.df[target_col].values, dtype=torch.float32)
 
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.encoded1 = tokenizer.batch_encode_plus(
@@ -341,7 +341,7 @@ class MyModel(nn.Module):
         self.net1 = AutoModel.from_pretrained(model_path, config=model_config)
         self.net2 = AutoModel.from_pretrained(model_path, config=model_config)
         self.out_shape = model_config.hidden_size * 2
-        self.fc = nn.Linear(self.out_shape, num_classes)
+        self.fc = nn.Linear(self.out_shape + 12, num_classes)
         self.custom_header = custom_header
         if self.custom_header == "cnn":
             self.cnn1 = nn.Conv1d(self.out_shape, 256, kernel_size=2, padding=1)
@@ -374,9 +374,7 @@ class MyModel(nn.Module):
         )
         if self.custom_header == "max_pool":
             sequence_output1, _ = outputs1["last_hidden_state"].max(1)
-            outputs1 = self.fc(sequence_output1)
             sequence_output2, _ = outputs2["last_hidden_state"].max(1)
-            outputs2 = self.fc(sequence_output2)
         elif self.custom_header == "cnn":
             last_hidden_state1 = outputs1["last_hidden_state"].permute(0, 2, 1)
             cnn_embeddings1 = self.relu(self.cnn1(last_hidden_state1))
@@ -419,11 +417,11 @@ class Cfg:
     RUN_NAME = "exp002"
     NUM_FOLDS = 5
     NUM_CLASSES = 1
-    NUM_EPOCHS = 3
+    NUM_EPOCHS = 10
     NUM_WORKERS = 2
     NUM_GPUS = 1
-    MAX_LEN = 100
-    BATCH_SIZE = 32
+    MAX_LEN = 256
+    BATCH_SIZE = 16
     MODEL_PATH = "xlm-roberta-base"
     TOKENIZER_PATH = "xlm-roberta-base"
     TRANSFORMER_PARAMS = {
@@ -431,7 +429,7 @@ class Cfg:
         "hidden_dropout_prob": 0.0,
         "layer_norm_eps": 1e-7,
     }
-    CUSTOM_HEADER = "concat"
+    CUSTOM_HEADER = "max_pool"
     OUTPUT_PATH = "."
     TRAIN_DF_PATH = "../input/semeval2022/semeval-2022_task8_train-data_batch.csv"
     TEST_DF_PATH = "../input/semeval2022/PUBLIC-semeval-2022_task8_eval_data_202201.csv"
@@ -490,7 +488,7 @@ if __name__ == "__main__":
         "1494757467_1495382175",
     ]
 
-    pred = np.load(f"y_test_pred_fold{fold}")
+    pred = np.load(f"y_test_pred_fold{fold}.npy")
     test = pd.read_csv(cfg.TEST_DF_PATH)
     test[cfg.TARGET_COL] = np.nan
     test.loc[test["pair_id"].isin(rule_based_pair_ids), cfg.TARGET_COL] = 2.8
