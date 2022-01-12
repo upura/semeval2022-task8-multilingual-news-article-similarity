@@ -126,7 +126,7 @@ class MyLightningModule(pl.LightningModule):
         self.log_dict(d, prog_bar=True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-6)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=self.trainer.max_epochs
         )
@@ -146,9 +146,11 @@ class TextDataset(Dataset):
         super().__init__()
 
         self.df = df
+        self.is_train = is_train
+
         text_df_path = (
             "../input/semeval2022/text_dataframe.csv"
-            if is_train
+            if self.is_train
             else "../input/semeval2022/text_dataframe_eval.csv"
         )
         self.text_dataframe = (
@@ -161,20 +163,43 @@ class TextDataset(Dataset):
             + "[SEP]"
             + self.text_dataframe["text"].fillna("")
         )
-        self.is_train = is_train
         self.text_dataframe["text_id"] = self.text_dataframe["text_id"].astype(str)
         self.df = self.df[
             self.df["pair_id"].map(lambda x: contain_text(self.text_dataframe, x))
         ].reset_index(drop=True)
+        self.df["text_id1"] = self.df["pair_id"].str.split("_").map(lambda x: x[0])
+        self.df["text_id2"] = self.df["pair_id"].str.split("_").map(lambda x: x[1])
 
-        self.text = self.text_dataframe[text_col].tolist()
+        self.df = pd.merge(
+            self.df,
+            self.text_dataframe[["text_id", "title"]],
+            left_on="text_id1",
+            right_on="text_id",
+            how="left",
+        )
+        self.df = pd.merge(
+            self.df,
+            self.text_dataframe[["text_id", "title"]],
+            left_on="text_id2",
+            right_on="text_id",
+            how="left",
+            suffixes=("_1", "_2"),
+        )
 
         if self.is_train:
             self.target = torch.tensor(df[target_col].values, dtype=torch.float32)
 
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-        self.encoded = tokenizer.batch_encode_plus(
-            self.text,
+        self.encoded1 = tokenizer.batch_encode_plus(
+            self.df[f"{text_col}_1"].tolist(),
+            padding="max_length",
+            max_length=max_len,
+            truncation=True,
+            return_attention_mask=True,
+            return_token_type_ids=True,
+        )
+        self.encoded2 = tokenizer.batch_encode_plus(
+            self.df[f"{text_col}_2"].tolist(),
             padding="max_length",
             max_length=max_len,
             truncation=True,
@@ -191,16 +216,12 @@ class TextDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, index):
-        pair_id = self.df["pair_id"][index]
-        text_id1, text_id2 = pair_id.split("_")
-        text_index1 = self.text_dataframe.query(f"text_id=='{text_id1}'").index[0]
-        text_index2 = self.text_dataframe.query(f"text_id=='{text_id2}'").index[0]
-        input_ids1 = torch.tensor(self.encoded["input_ids"][text_index1])
-        attention_mask1 = torch.tensor(self.encoded["attention_mask"][text_index1])
-        token_type_ids1 = torch.tensor(self.encoded["token_type_ids"][text_index1])
-        input_ids2 = torch.tensor(self.encoded["input_ids"][text_index2])
-        attention_mask2 = torch.tensor(self.encoded["attention_mask"][text_index2])
-        token_type_ids2 = torch.tensor(self.encoded["token_type_ids"][text_index2])
+        input_ids1 = torch.tensor(self.encoded1["input_ids"][index])
+        attention_mask1 = torch.tensor(self.encoded1["attention_mask"][index])
+        token_type_ids1 = torch.tensor(self.encoded1["token_type_ids"][index])
+        input_ids2 = torch.tensor(self.encoded2["input_ids"][index])
+        attention_mask2 = torch.tensor(self.encoded2["attention_mask"][index])
+        token_type_ids2 = torch.tensor(self.encoded2["token_type_ids"][index])
         features = torch.tensor(self.features.loc[index].values, dtype=torch.float32)
         if self.is_train:
             target = self.target[index]
