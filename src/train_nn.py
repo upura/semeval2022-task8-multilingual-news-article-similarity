@@ -44,6 +44,7 @@ class MyLightningModule(pl.LightningModule):
             custom_header=cfg.CUSTOM_HEADER,
         )
         self.criterion = RMSELoss()
+        self.lr = cfg.LEARNING_RATE
 
     def forward(self, x):
         ids1 = x["ids1"]
@@ -126,7 +127,7 @@ class MyLightningModule(pl.LightningModule):
         self.log_dict(d, prog_bar=True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=8e-6)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=self.trainer.max_epochs
         )
@@ -417,11 +418,12 @@ class Cfg:
     RUN_NAME = "exp002"
     NUM_FOLDS = 5
     NUM_CLASSES = 1
-    NUM_EPOCHS = 15
+    NUM_EPOCHS = 10
     NUM_WORKERS = 2
     NUM_GPUS = 1
     MAX_LEN = 512
     BATCH_SIZE = 4
+    LEARNING_RATE = 6e-6
     MODEL_PATH = "xlm-roberta-base"
     TOKENIZER_PATH = "xlm-roberta-base"
     TRANSFORMER_PARAMS = {
