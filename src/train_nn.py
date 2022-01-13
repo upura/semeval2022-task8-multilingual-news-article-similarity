@@ -1,3 +1,4 @@
+import argparse
 import dataclasses
 import os
 from collections import OrderedDict
@@ -149,44 +150,6 @@ class TextDataset(Dataset):
         self.df = df
         self.is_train = is_train
 
-        text_df_path = (
-            "../input/semeval2022/text_dataframe.csv"
-            if self.is_train
-            else "../input/semeval2022/text_dataframe_eval.csv"
-        )
-        self.text_dataframe = (
-            pd.read_csv(text_df_path, low_memory=False)
-            .dropna(subset=["title", "text"])
-            .reset_index(drop=True)
-        )
-        self.text_dataframe["title"] = (
-            self.text_dataframe["title"].fillna("")
-            + "[SEP]"
-            + self.text_dataframe["text"].fillna("")
-        )
-        self.text_dataframe["text_id"] = self.text_dataframe["text_id"].astype(str)
-        self.df = self.df[
-            self.df["pair_id"].map(lambda x: contain_text(self.text_dataframe, x))
-        ].reset_index(drop=True)
-        self.df["text_id1"] = self.df["pair_id"].str.split("_").map(lambda x: x[0])
-        self.df["text_id2"] = self.df["pair_id"].str.split("_").map(lambda x: x[1])
-
-        self.df = pd.merge(
-            self.df,
-            self.text_dataframe[["text_id", "title"]],
-            left_on="text_id1",
-            right_on="text_id",
-            how="left",
-        )
-        self.df = pd.merge(
-            self.df,
-            self.text_dataframe[["text_id", "title"]],
-            left_on="text_id2",
-            right_on="text_id",
-            how="left",
-            suffixes=("_1", "_2"),
-        )
-
         if self.is_train:
             self.target = torch.tensor(self.df[target_col].values, dtype=torch.float32)
 
@@ -257,8 +220,45 @@ class MyDataModule(pl.LightningDataModule):
         self.valid_df = None
         self.cfg = cfg
 
+    def merge_df_and_text(self, df, text_dataframe):
+        text_dataframe = text_dataframe.dropna(subset=["title", "text"]).reset_index(
+            drop=True
+        )
+        text_dataframe["title"] = (
+            text_dataframe["title"].fillna("")
+            + "[SEP]"
+            + text_dataframe["text"].fillna("")
+        )
+        text_dataframe["text_id"] = text_dataframe["text_id"].astype(str)
+        df = df[
+            df["pair_id"].map(lambda x: contain_text(text_dataframe, x))
+        ].reset_index(drop=True)
+        df["text_id1"] = df["pair_id"].str.split("_").map(lambda x: x[0])
+        df["text_id2"] = df["pair_id"].str.split("_").map(lambda x: x[1])
+
+        df = pd.merge(
+            df,
+            text_dataframe[["text_id", "title"]],
+            left_on="text_id1",
+            right_on="text_id",
+            how="left",
+        )
+        df = pd.merge(
+            df,
+            text_dataframe[["text_id", "title"]],
+            left_on="text_id2",
+            right_on="text_id",
+            how="left",
+            suffixes=("_1", "_2"),
+        )
+        return df
+
     def get_test_df(self):
         df = pd.read_csv(self.cfg.TEST_DF_PATH)
+        text_dataframe = pd.read_csv(
+            "../input/semeval2022/text_dataframe_eval.csv", low_memory=False
+        )
+        df = self.merge_df_and_text(df, text_dataframe)
         return df
 
     def split_train_valid_df(self):
@@ -267,8 +267,10 @@ class MyDataModule(pl.LightningDataModule):
         else:
             df = pd.read_csv(self.cfg.TRAIN_DF_PATH)
 
-        df.reset_index(drop=True, inplace=True)
-
+        text_dataframe = pd.read_csv(
+            "../input/semeval2022/text_dataframe.csv", low_memory=False
+        )
+        df = self.merge_df_and_text(df, text_dataframe)
         cv = KFold(n_splits=self.cfg.NUM_FOLDS, shuffle=True, random_state=42)
         for n, (train_index, val_index) in enumerate(cv.split(df)):
             df.loc[val_index, "fold"] = int(n)
@@ -424,8 +426,8 @@ class Cfg:
     MAX_LEN = 512
     BATCH_SIZE = 4
     LEARNING_RATE = 6e-6
-    MODEL_PATH = "xlm-roberta-base"
-    TOKENIZER_PATH = "xlm-roberta-base"
+    MODEL_PATH = "bert-base-multilingual-uncased"
+    TOKENIZER_PATH = "bert-base-multilingual-uncased"
     TRANSFORMER_PARAMS = {
         "output_hidden_states": True,
         "hidden_dropout_prob": 0.0,
@@ -441,7 +443,11 @@ class Cfg:
 
 if __name__ == "__main__":
 
-    fold = 0
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fold")
+    args = parser.parse_args()
+
+    fold = int(args.fold)
     debug = False
     cfg = Cfg()
     cfg.fold = fold
@@ -490,12 +496,18 @@ if __name__ == "__main__":
         "1494757467_1495382175",
     ]
 
-    pred = np.load(f"y_test_pred_fold{fold}.npy")
-    test = pd.read_csv(cfg.TEST_DF_PATH)
-    test[cfg.TARGET_COL] = np.nan
-    test.loc[test["pair_id"].isin(rule_based_pair_ids), cfg.TARGET_COL] = 2.8
-    test.loc[~test["pair_id"].isin(rule_based_pair_ids), cfg.TARGET_COL] = pred.reshape(
-        -1
-    )
-    test[["pair_id", cfg.TARGET_COL]].to_csv("submission.csv", index=False)
-    test[["pair_id", cfg.TARGET_COL]].head(2)
+    y_val_pred = np.load(f"y_val_pred_fold{fold}.npy")
+    y_test_pred = np.load(f"y_test_pred_fold{fold}.npy")
+
+    oof = datamodule.valid_df[["pair_id", cfg.TARGET_COL]].copy()
+    oof["y_pred"] = y_val_pred.reshape(-1)
+    oof.to_csv(f"oof_fold{fold}.csv", index=False)
+
+    sub = pd.read_csv(cfg.TEST_DF_PATH)
+    sub[cfg.TARGET_COL] = np.nan
+    sub.loc[sub["pair_id"].isin(rule_based_pair_ids), cfg.TARGET_COL] = 2.8
+    sub.loc[
+        ~sub["pair_id"].isin(rule_based_pair_ids), cfg.TARGET_COL
+    ] = y_test_pred.reshape(-1)
+    sub[["pair_id", cfg.TARGET_COL]].to_csv("submission.csv", index=False)
+    sub[["pair_id", cfg.TARGET_COL]].head(2)
