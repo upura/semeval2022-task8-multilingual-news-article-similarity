@@ -1,6 +1,7 @@
 import argparse
 import dataclasses
 import os
+import sys
 from collections import OrderedDict
 from typing import Any, Dict, List
 
@@ -9,7 +10,6 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 import wandb
-from kaggle_secrets import UserSecretsClient
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
@@ -456,8 +456,12 @@ if __name__ == "__main__":
     seed_everything(777)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
-    user_secrets = UserSecretsClient()
-    secret_value = user_secrets.get_secret("WANDB_API_KEY")
+    if "google.colab" in sys.modules:
+        secret_value = "YOUR_SECRET"
+    else:
+        from kaggle_secrets import UserSecretsClient
+        user_secrets = UserSecretsClient()
+        secret_value = user_secrets.get_secret("WANDB_API_KEY")
     wandb.login(key=secret_value)
 
     logger = CSVLogger(save_dir=str(cfg.OUTPUT_PATH), name=f"fold_{fold}")
