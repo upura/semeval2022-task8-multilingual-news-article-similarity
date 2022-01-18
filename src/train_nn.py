@@ -14,7 +14,6 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.loggers.csv_logs import CSVLogger
-from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -123,7 +122,9 @@ class MyLightningModule(pl.LightningModule):
         targets = torch.cat([o["targets"].view(-1) for o in outputs]).cpu().numpy()
         preds = torch.cat([o["preds"].view(-1) for o in outputs]).cpu().numpy()
 
-        score = mean_squared_error(targets, preds, squared=False)
+        score = pd.DataFrame({"targets": targets, "preds": preds}).corr()["targets"][
+            "preds"
+        ]
         d["v_score"] = score
         self.log_dict(d, prog_bar=True)
 
@@ -460,6 +461,7 @@ if __name__ == "__main__":
         secret_value = "YOUR_SECRET"
     else:
         from kaggle_secrets import UserSecretsClient
+
         user_secrets = UserSecretsClient()
         secret_value = user_secrets.get_secret("WANDB_API_KEY")
     wandb.login(key=secret_value)
