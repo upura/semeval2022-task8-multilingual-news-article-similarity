@@ -349,9 +349,15 @@ class MyModel(nn.Module):
         if self.custom_header == "cnn":
             self.cnn1 = nn.Conv1d(self.out_shape, 256, kernel_size=2, padding=1)
             self.cnn2 = nn.Conv1d(256, 1, kernel_size=2, padding=1)
-            self.relu = nn.ReLU()
+            self.relu1 = nn.ReLU()
+            self.cnn3 = nn.Conv1d(self.out_shape, 256, kernel_size=2, padding=1)
+            self.cnn4 = nn.Conv1d(256, 1, kernel_size=2, padding=1)
+            self.relu2 = nn.ReLU()
+            self.fc = nn.Linear((256 * 2 + 2) * 2 + 12, num_classes)
         elif self.custom_header == "lstm":
-            self.lstm = nn.LSTM(self.out_shape, self.out_shape, batch_first=True)
+            self.lstm1 = nn.LSTM(self.out_shape, self.out_shape, batch_first=True)
+            self.lstm2 = nn.LSTM(self.out_shape, self.out_shape, batch_first=True)
+            self.fc = nn.Linear(self.out_shape * 2 + 12, num_classes)
         elif self.custom_header == "concat":
             self.fc = nn.Linear(self.out_shape * 8 + 12, num_classes)
         elif self.custom_header == "max_pool":
@@ -418,9 +424,9 @@ class MyModel(nn.Module):
 class Cfg:
     PROJECT_NAME = "semeval2022"
     RUN_NAME = "exp002"
-    NUM_FOLDS = 5
+    NUM_FOLDS = 20
     NUM_CLASSES = 1
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 7
     NUM_WORKERS = 2
     NUM_GPUS = 1
     MAX_LEN = 512
@@ -433,7 +439,7 @@ class Cfg:
         "hidden_dropout_prob": 0.0,
         "layer_norm_eps": 1e-7,
     }
-    CUSTOM_HEADER = "max_pool"
+    CUSTOM_HEADER = "concat"
     OUTPUT_PATH = "."
     TRAIN_DF_PATH = "../input/semeval2022/semeval-2022_task8_train-data_batch.csv"
     TEST_DF_PATH = "../input/semeval2022/PUBLIC-semeval-2022_task8_eval_data_202201.csv"
