@@ -344,8 +344,7 @@ class MyModel(nn.Module):
         model_config.update(transformer_params)
         self.net1 = AutoModel.from_pretrained(model_path, config=model_config)
         self.net2 = AutoModel.from_pretrained(model_path, config=model_config)
-        self.out_shape = model_config.hidden_size * 2
-        self.fc = nn.Linear(self.out_shape + 12, num_classes)
+        self.out_shape = model_config.hidden_size
         self.custom_header = custom_header
         if self.custom_header == "cnn":
             self.cnn1 = nn.Conv1d(self.out_shape, 256, kernel_size=2, padding=1)
@@ -354,7 +353,9 @@ class MyModel(nn.Module):
         elif self.custom_header == "lstm":
             self.lstm = nn.LSTM(self.out_shape, self.out_shape, batch_first=True)
         elif self.custom_header == "concat":
-            self.fc = nn.Linear(self.out_shape * 4 + 12, num_classes)
+            self.fc = nn.Linear(self.out_shape * 8 + 12, num_classes)
+        elif self.custom_header == "max_pool":
+            self.fc = nn.Linear(self.out_shape * 2 + 12, num_classes)
 
     def forward(
         self,
@@ -381,20 +382,18 @@ class MyModel(nn.Module):
             sequence_output2, _ = outputs2["last_hidden_state"].max(1)
         elif self.custom_header == "cnn":
             last_hidden_state1 = outputs1["last_hidden_state"].permute(0, 2, 1)
-            cnn_embeddings1 = self.relu(self.cnn1(last_hidden_state1))
+            cnn_embeddings1 = self.relu1(self.cnn1(last_hidden_state1))
             cnn_embeddings1 = self.cnn2(cnn_embeddings1)
-            outputs1, _ = torch.max(cnn_embeddings1, 2)
+            sequence_output1, _ = torch.max(cnn_embeddings1, 1)
             last_hidden_state2 = outputs2["last_hidden_state"].permute(0, 2, 1)
-            cnn_embeddings2 = self.relu(self.cnn1(last_hidden_state2))
-            cnn_embeddings2 = self.cnn2(cnn_embeddings2)
-            outputs2, _ = torch.max(cnn_embeddings2, 2)
+            cnn_embeddings2 = self.relu2(self.cnn3(last_hidden_state2))
+            cnn_embeddings2 = self.cnn4(cnn_embeddings2)
+            sequence_output2, _ = torch.max(cnn_embeddings2, 1)
         elif self.custom_header == "lstm":
-            out1, _ = self.lstm(outputs1["last_hidden_state"], None)
+            out1, _ = self.lstm1(outputs1["last_hidden_state"], None)
             sequence_output1 = out1[:, -1, :]
-            outputs1 = self.fc(sequence_output1)
-            out2, _ = self.lstm(outputs2["last_hidden_state"], None)
+            out2, _ = self.lstm2(outputs2["last_hidden_state"], None)
             sequence_output2 = out2[:, -1, :]
-            outputs2 = self.fc(sequence_output2)
         elif self.custom_header == "concat":
             sequence_output1 = torch.cat(
                 [outputs1["hidden_states"][-1 * i][:, 0] for i in range(1, 4 + 1)],
@@ -426,15 +425,15 @@ class Cfg:
     NUM_GPUS = 1
     MAX_LEN = 512
     BATCH_SIZE = 4
-    LEARNING_RATE = 6e-6
-    MODEL_PATH = "bert-base-multilingual-uncased"
-    TOKENIZER_PATH = "bert-base-multilingual-uncased"
+    LEARNING_RATE = 1e-5
+    MODEL_PATH = "bert-base-multilingual-cased"
+    TOKENIZER_PATH = "bert-base-multilingual-cased"
     TRANSFORMER_PARAMS = {
         "output_hidden_states": True,
         "hidden_dropout_prob": 0.0,
         "layer_norm_eps": 1e-7,
     }
-    CUSTOM_HEADER = "concat"
+    CUSTOM_HEADER = "max_pool"
     OUTPUT_PATH = "."
     TRAIN_DF_PATH = "../input/semeval2022/semeval-2022_task8_train-data_batch.csv"
     TEST_DF_PATH = "../input/semeval2022/PUBLIC-semeval-2022_task8_eval_data_202201.csv"

@@ -371,7 +371,7 @@ class MyModel(nn.Module):
             attention_mask=attention_mask1,
             token_type_ids=token_type_ids1,
         )
-        outputs2 = self.net1(
+        outputs2 = self.net2(
             input_ids=input_ids2,
             attention_mask=attention_mask2,
             token_type_ids=token_type_ids2,
