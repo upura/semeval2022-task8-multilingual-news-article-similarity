@@ -1,7 +1,16 @@
 import numpy as np
 import pandas as pd
+from keras import backend as K
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.layers import Activation, BatchNormalization, Dense, Input
+from keras.models import Model
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import KFold
+
+
+def root_mean_squared_error(y_true, y_pred):
+    return K.sqrt(K.mean(K.square(y_true - y_pred)))
+
 
 if __name__ == "__main__":
 
@@ -153,7 +162,12 @@ if __name__ == "__main__":
     y_preds = []
     models = []
     oof_train = np.zeros((len(X_train)))
-    cv = KFold(n_splits=5, random_state=42, shuffle=True)
+
+    y_preds_n = []
+    models_n = []
+    oof_train_n = np.zeros((len(X_train)))
+
+    cv = KFold(n_splits=20, random_state=42, shuffle=True)
     for fold_id, (train_index, valid_index) in enumerate(cv.split(X_train)):
         X_tr = X_train.loc[train_index, :]
         X_val = X_train.loc[valid_index, :]
@@ -167,11 +181,45 @@ if __name__ == "__main__":
         y_preds.append(y_pred)
         models.append(model_r)
 
+        inp_ = Input(shape=[X_tr.shape[1]])
+        nn = Dense(50)(inp_)
+        nn = BatchNormalization()(nn)
+        nn = Activation("relu")(nn)
+        nn = Dense(16)(nn)
+        nn = BatchNormalization()(nn)
+        nn = Activation("relu")(nn)
+        nn = Dense(1)(nn)
+        model = Model(inp_, nn)
+        model.compile(optimizer="Adam", loss=root_mean_squared_error)
+
+        file_path = "model.hdf5"
+        ckpt = ModelCheckpoint(
+            file_path, monitor="val_loss", verbose=0, save_best_only=True, mode="min"
+        )
+        early = EarlyStopping(monitor="val_loss", mode="min", patience=10)
+        model.fit(
+            X_tr,
+            y_tr,
+            batch_size=64,
+            epochs=100,
+            verbose=0,
+            validation_data=(X_val, y_val),
+            callbacks=[ckpt, early],
+        )
+        model.load_weights(file_path)
+        oof_train_n[valid_index] = model.predict(X_val).reshape(-1)
+        y_pred_n = model.predict(X_test).reshape(-1)
+        y_preds_n.append(y_pred_n)
+
     oof_sub = pd.DataFrame()
     oof_sub["y_true"] = y_train
     oof_sub["y_pred"] = oof_train
+    oof_sub["y_pred_n"] = oof_train_n
+    oof_sub["y_pred_all"] = oof_train * 0.4 + oof_train_n * 0.6
     print(oof_sub.corr())
+
     y_test_pred = sum(y_preds) / len(y_preds)
+    y_test_pred_n = sum(y_preds_n) / len(y_preds_n)
 
     rule_based_pair_ids = [
         "1489951217_1489983888",
@@ -189,7 +237,9 @@ if __name__ == "__main__":
     )
     sub["Overall"] = np.nan
     sub.loc[sub["pair_id"].isin(rule_based_pair_ids), "Overall"] = 2.8
-    sub.loc[~sub["pair_id"].isin(rule_based_pair_ids), "Overall"] = y_test_pred
+    sub.loc[~sub["pair_id"].isin(rule_based_pair_ids), "Overall"] = (
+        y_test_pred * 0.4 + y_test_pred_n * 0.6
+    )
     sub["Overall"] = sub["Overall"] * -1
-    sub[["pair_id", "Overall"]].to_csv("submission.csv", index=False)
+    sub[["pair_id", "Overall"]].to_csv("submission2.csv", index=False)
     sub[["pair_id", "Overall"]].head(2)
