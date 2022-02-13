@@ -84,5 +84,5 @@ if __name__ == "__main__":
     train = tranlatation(train, "title_2")
     test = tranlatation(test, "title_1")
     test = tranlatation(test, "title_2")
-    train.to_csv("train.csv", index=False)
-    test.to_csv("test.csv", index=False)
+    train.to_csv("../input/semeval2022/train.csv", index=False)
+    test.to_csv("../input/semeval2022/test.csv", index=False)
