@@ -17,7 +17,7 @@ def fetch_dateframe(text_id: str, meta):
 
 
 if __name__ == "__main__":
-    phase = ["test"]
+    phase = ["train", "test"]
 
     if "train" in phase:
         train = pd.read_csv(
