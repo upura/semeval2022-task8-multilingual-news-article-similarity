@@ -12,6 +12,9 @@
 
 ## Training
 
+Run `src/run_model_XXX.sh`.
+When you do `sh run_model_001.sh`, the following command is executed.
+
 ```bash
 python train_nn.py \
     --fold 0 \
@@ -23,3 +26,9 @@ python train_nn.py \
 ```
 
 ## Submission
+
+Run `src/submit.py`.
+
+```bash
+python submit.py
+```
