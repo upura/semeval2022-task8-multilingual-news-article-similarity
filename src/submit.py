@@ -174,6 +174,7 @@ if __name__ == "__main__":
     sub["Overall"] = np.nan
     sub.loc[sub["pair_id"].isin(rule_based_pair_ids), "Overall"] = 2.8
     sub.loc[~sub["pair_id"].isin(rule_based_pair_ids), "Overall"] = y_test_pred
+    # Because the labels of training data are reversed at the initial release
     sub["Overall"] = sub["Overall"] * -1
-    sub[["pair_id", "Overall"]].to_csv("submission3.csv", index=False)
+    sub[["pair_id", "Overall"]].to_csv("submission.csv", index=False)
     sub[["pair_id", "Overall"]].head(2)

@@ -421,7 +421,7 @@ class MyModel(nn.Module):
 @dataclasses.dataclass
 class Cfg:
     PROJECT_NAME = "semeval2022"
-    RUN_NAME = "exp003"
+    RUN_NAME = "exp001"
     NUM_FOLDS = 5
     NUM_CLASSES = 1
     NUM_EPOCHS = 10
@@ -429,9 +429,9 @@ class Cfg:
     NUM_GPUS = 1
     MAX_LEN = 512
     BATCH_SIZE = 4
-    LEARNING_RATE = 1e-6
-    MODEL_PATH = "bert-base-multilingual-uncased"
-    TOKENIZER_PATH = "bert-base-multilingual-uncased"
+    LEARNING_RATE = 1e-5
+    MODEL_PATH = "bert-base-multilingual-cased"
+    TOKENIZER_PATH = "bert-base-multilingual-cased"
     TRANSFORMER_PARAMS = {
         "output_hidden_states": True,
         "hidden_dropout_prob": 0.0,
@@ -518,5 +518,7 @@ if __name__ == "__main__":
     sub.loc[
         ~sub["pair_id"].isin(rule_based_pair_ids), cfg.TARGET_COL
     ] = y_test_pred.reshape(-1)
+    # Because the labels of training data are reversed at the initial release
+    sub["Overall"] = sub["Overall"] * -1
     sub[["pair_id", cfg.TARGET_COL]].to_csv("submission.csv", index=False)
     sub[["pair_id", cfg.TARGET_COL]].head(2)

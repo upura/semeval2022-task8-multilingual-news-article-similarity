@@ -469,5 +469,7 @@ if __name__ == "__main__":
     sub.loc[
         ~sub["pair_id"].isin(rule_based_pair_ids), cfg.TARGET_COL
     ] = y_test_pred.reshape(-1)
+    # Because the labels of training data are reversed at the initial release
+    sub["Overall"] = sub["Overall"] * -1
     sub[["pair_id", cfg.TARGET_COL]].to_csv("submission.csv", index=False)
     sub[["pair_id", cfg.TARGET_COL]].head(2)
