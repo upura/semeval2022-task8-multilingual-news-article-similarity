@@ -283,6 +283,20 @@ class MyDataModule(pl.LightningDataModule):
 
     def setup(self, stage):
         self.test_df = self.get_test_df()
+        self.test_df = self.test_df[
+            ~self.test_df["pair_id"].isin(
+                [
+                    "1489951217_1489983888",
+                    "1615462021_1614797257",
+                    "1556817289_1583857471",
+                    "1485350427_1486534258",
+                    "1517231070_1551671513",
+                    "1533559316_1543388429",
+                    "1626509167_1626408793",
+                    "1494757467_1495382175",
+                ]
+            )
+        ].reset_index(drop=True)
         train_df, valid_df = self.split_train_valid_df()
         self.train_df = train_df
         self.valid_df = valid_df
@@ -424,7 +438,7 @@ class Cfg:
     RUN_NAME = "exp001"
     NUM_FOLDS = 5
     NUM_CLASSES = 1
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 7
     NUM_WORKERS = 2
     NUM_GPUS = 1
     MAX_LEN = 512
