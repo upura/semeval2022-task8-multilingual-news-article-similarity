@@ -424,22 +424,17 @@ class MyModel(nn.Module):
 class Cfg:
     PROJECT_NAME = "semeval2022"
     RUN_NAME = "exp000"
-    NUM_FOLDS = 20
     NUM_CLASSES = 1
     NUM_EPOCHS = 7
-    NUM_WORKERS = 2
+    NUM_WORKERS = 8
     NUM_GPUS = 1
     MAX_LEN = 512
     BATCH_SIZE = 4
-    LEARNING_RATE = 1e-5
-    MODEL_PATH = "bert-base-multilingual-cased"
-    TOKENIZER_PATH = "bert-base-multilingual-cased"
     TRANSFORMER_PARAMS = {
         "output_hidden_states": True,
         "hidden_dropout_prob": 0.0,
         "layer_norm_eps": 1e-7,
     }
-    CUSTOM_HEADER = "concat"
     OUTPUT_PATH = "."
     TRAIN_DF_PATH = "../input/semeval2022/semeval-2022_task8_train-data_batch.csv"
     TEST_DF_PATH = "../input/semeval2022/PUBLIC-semeval-2022_task8_eval_data_202201.csv"
@@ -450,11 +445,12 @@ class Cfg:
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fold")
-    parser.add_argument("--max_len")
-    parser.add_argument("--num_folds")
-    parser.add_argument("--model")
-    parser.add_argument("--custom_header")
+    parser.add_argument("--fold", default=0)
+    parser.add_argument("--max_len", default=512)
+    parser.add_argument("--num_folds", default=5)
+    parser.add_argument("--model", default="bert-base-multilingual-cased")
+    parser.add_argument("--custom_header", default="concat")
+    parser.add_argument("--lr", default=1e-5)
     args = parser.parse_args()
 
     debug = False
@@ -463,9 +459,10 @@ if __name__ == "__main__":
     cfg.debug = debug
     cfg.MAX_LEN = int(args.max_len)
     cfg.NUM_FOLDS = int(args.num_folds)
-    cfg.TOKENIZER_PATH = args.model
+    cfg.MODEL_PATH = args.model
     cfg.TOKENIZER_PATH = args.model
     cfg.CUSTOM_HEADER = args.custom_header
+    cfg.LEARNING_RATE = float(args.lr)
 
     seed_everything(777)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
