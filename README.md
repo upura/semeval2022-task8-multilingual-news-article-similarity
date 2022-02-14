@@ -1,4 +1,4 @@
-# Exploring Bert-based Bi-Encoder Approach for Pairwise Multilingual News Article Similarity
+# Exploring BERT-based Bi-Encoder Approach for Pairwise Multilingual News Article Similarity
 
 12th place solution for SemEval 2022 Task 8: Multilingual News Article Similarity.
 
@@ -11,5 +11,14 @@
 1. Run `src/extract_features.py` to create some hand-craft features like Jaccard Index, Dice Index, and cosine similarity.
 
 ## Training
+
+```bash
+python train_nn.py \
+    --fold 0 \
+    --max_len 512 \
+    --num_folds 5 \
+    --model bert-base-multilingual-cased \
+    --custom_header concat
+```
 
 ## Submission

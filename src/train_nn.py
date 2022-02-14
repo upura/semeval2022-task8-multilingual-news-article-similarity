@@ -423,7 +423,7 @@ class MyModel(nn.Module):
 @dataclasses.dataclass
 class Cfg:
     PROJECT_NAME = "semeval2022"
-    RUN_NAME = "exp002"
+    RUN_NAME = "exp000"
     NUM_FOLDS = 20
     NUM_CLASSES = 1
     NUM_EPOCHS = 7
@@ -451,13 +451,21 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--fold")
+    parser.add_argument("--max_len")
+    parser.add_argument("--num_folds")
+    parser.add_argument("--model")
+    parser.add_argument("--custom_header")
     args = parser.parse_args()
 
-    fold = int(args.fold)
     debug = False
     cfg = Cfg()
-    cfg.fold = fold
+    cfg.fold = int(args.fold)
     cfg.debug = debug
+    cfg.MAX_LEN = int(args.max_len)
+    cfg.NUM_FOLDS = int(args.num_folds)
+    cfg.TOKENIZER_PATH = args.model
+    cfg.TOKENIZER_PATH = args.model
+    cfg.CUSTOM_HEADER = args.custom_header
 
     seed_everything(777)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -471,12 +479,14 @@ if __name__ == "__main__":
         secret_value = user_secrets.get_secret("WANDB_API_KEY")
     wandb.login(key=secret_value)
 
-    logger = CSVLogger(save_dir=str(cfg.OUTPUT_PATH), name=f"fold_{fold}")
-    wandb_logger = WandbLogger(name=f"{cfg.RUN_NAME}_{fold}", project=cfg.PROJECT_NAME)
+    logger = CSVLogger(save_dir=str(cfg.OUTPUT_PATH), name=f"fold_{cfg.fold}")
+    wandb_logger = WandbLogger(
+        name=f"{cfg.RUN_NAME}_{cfg.fold}", project=cfg.PROJECT_NAME
+    )
 
     checkpoint_callback = ModelCheckpoint(
         dirpath=str(cfg.OUTPUT_PATH),
-        filename=f"{cfg.RUN_NAME}_fold_{fold}",
+        filename=f"{cfg.RUN_NAME}_fold_{cfg.fold}",
         save_weights_only=True,
         monitor=None,
     )
@@ -493,8 +503,8 @@ if __name__ == "__main__":
 
     y_val_pred = torch.cat(trainer.predict(model, datamodule.val_dataloader()))
     y_test_pred = torch.cat(trainer.predict(model, datamodule.test_dataloader()))
-    np.save(f"y_val_pred_fold{fold}", y_val_pred.to("cpu").detach().numpy())
-    np.save(f"y_test_pred_fold{fold}", y_test_pred.to("cpu").detach().numpy())
+    np.save(f"y_val_pred_fold{cfg.fold}", y_val_pred.to("cpu").detach().numpy())
+    np.save(f"y_test_pred_fold{cfg.fold}", y_test_pred.to("cpu").detach().numpy())
 
     rule_based_pair_ids = [
         "1489951217_1489983888",
@@ -507,12 +517,12 @@ if __name__ == "__main__":
         "1494757467_1495382175",
     ]
 
-    y_val_pred = np.load(f"y_val_pred_fold{fold}.npy")
-    y_test_pred = np.load(f"y_test_pred_fold{fold}.npy")
+    y_val_pred = np.load(f"y_val_pred_fold{cfg.fold}.npy")
+    y_test_pred = np.load(f"y_test_pred_fold{cfg.fold}.npy")
 
     oof = datamodule.valid_df[["pair_id", cfg.TARGET_COL]].copy()
     oof["y_pred"] = y_val_pred.reshape(-1)
-    oof.to_csv(f"oof_fold{fold}.csv", index=False)
+    oof.to_csv(f"oof_fold{cfg.fold}.csv", index=False)
 
     sub = pd.read_csv(cfg.TEST_DF_PATH)
     sub[cfg.TARGET_COL] = np.nan
