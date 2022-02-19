@@ -251,10 +251,11 @@ if __name__ == "__main__":
         "1494757467_1495382175",
     ]
 
-    test["Overall"] = np.nan
-    test.loc[test["pair_id"].isin(rule_based_pair_ids), "Overall"] = 2.8
-    test.loc[~test["pair_id"].isin(rule_based_pair_ids), "Overall"] = y_pred
+    sub = pd.read_csv(TEST_DF_PATH)
+    sub["Overall"] = np.nan
+    sub.loc[sub["pair_id"].isin(rule_based_pair_ids), "Overall"] = 2.8
+    sub.loc[~sub["pair_id"].isin(rule_based_pair_ids), "Overall"] = y_pred
     # Because the labels of training data are reversed at the initial release
-    test["Overall"] = test["Overall"] * -1
-    test[["pair_id", "Overall"]].to_csv("submission.csv", index=False)
-    test[["pair_id", "Overall"]].head(2)
+    sub["Overall"] = sub["Overall"] * -1
+    sub[["pair_id", "Overall"]].to_csv("submission.csv", index=False)
+    sub[["pair_id", "Overall"]].head(2)
