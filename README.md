@@ -1,6 +1,11 @@
 # Exploring BERT-based Bi-Encoder Approach for Pairwise Multilingual News Article Similarity
 
 12th place solution for SemEval 2022 Task 8: Multilingual News Article Similarity.
+The final prediction is calculated by a weighted average of the output of the four neural networks.
+![proposed](proposed.png)
+
+The following figure illustrates the base architecture of each neural network.
+![base_architecture](base_architecture.png)
 
 ## Dataset preparation
 
@@ -31,4 +36,16 @@ Run `src/submit.py`.
 
 ```bash
 python submit.py
+```
+
+## Citation
+
+```
+@inproceedings{nikkei2022-semeval,
+year={2022},
+author={Shotaro Ishihara and Hono Shirai},
+title={Nikkei at {SemEval-2022 Task 8}: Exploring BERT-based Bi-Encoder Approach for Pairwise Multilingual News Article Similarity},
+booktitle={Proceedings of the 16th International Workshop on Semantic Evaluation (SemEval-2022)},
+publisher={Association for Computational Linguistics}
+}
 ```
